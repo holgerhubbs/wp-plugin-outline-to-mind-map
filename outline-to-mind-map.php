@@ -3,7 +3,7 @@
  * Plugin Name:       Outline to Mind Map
  * Plugin URI:        https://wordpress.org/plugins/outline-to-mind-map/
  * Description:       Transform any text outline into a visual, interactive mind map that simplifies complex ideas and invites users to explore them like a game—no coding required.
- * Version:           1.0.2
+ * Version:           1.0.3
  * Requires at least: 5.8
  * Tested up to:      6.9
  * Requires PHP:      7.4
@@ -18,7 +18,7 @@ if ( ! defined( 'ABSPATH' ) ) {
     exit;
 }
 
-define( 'OTMM_VERSION', '1.0.2' );
+define( 'OTMM_VERSION', '1.0.3' );
 define( 'OTMM_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'OTMM_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 define( 'OTMM_CACHE_GROUP', 'otmm' );

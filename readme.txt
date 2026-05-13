@@ -6,7 +6,7 @@ Tags: mindmap, mind map, outline, visual thinking, visualization
 Requires at least: 5.8
 Tested up to: 6.9
 Requires PHP: 7.4
-Stable tag: 1.0.2
+Stable tag: 1.0.3
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -117,6 +117,11 @@ No. The Markmap scripts are only loaded on pages that contain the shortcode.
 3. The Settings page with parameter reference
 
 == Changelog ==
+
+= 1.0.3 =
+* Fixed fold parameter (initialExpandLevel) not being applied on initial render
+* Fixed color_scheme parameter having no effect
+* Fixed zoom and pan parameters not being applied
 
 = 1.0.1 =
 * Bundled Markmap library locally (WordPress.org policy compliance)

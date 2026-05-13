@@ -140,6 +140,10 @@ class Outline_To_Mind_Map_Shortcode {
         // on every request even when the HTML is served from cache.
         $this->maybe_enqueue_assets();
 
+        // Prepend YAML frontmatter so the autoloader reads our options natively.
+        $frontmatter = $this->build_frontmatter( $atts );
+        $full_markdown = $frontmatter . $markdown;
+
         if ( $use_cache ) {
             $cache_key = $this->cache->make_key( $markdown, $atts );
             $cached    = $this->cache->get( $cache_key );
@@ -149,48 +153,29 @@ class Outline_To_Mind_Map_Shortcode {
         }
 
         self::$instance_count++;
-        $map_id  = 'outline-to-mind-map-' . self::$instance_count;
-        $js_opts = wp_json_encode( $this->build_js_options( $atts ) );
+        $map_id = 'outline-to-mind-map-' . self::$instance_count;
 
-        // Embed markdown in <script type="text/template"> so the browser does
-        // not parse # as headings or < as tags. The autoloader reads this and
-        // injects an <svg class="markmap"> into the parent div.
-        //
-        // The per-instance inline script waits for the autoloader to finish,
-        // then applies our custom options and calls fit() to center the view.
-        //
-        // NOTE: Markmap.create() is a static factory method, not a constructor.
-        // Build the container HTML — clean, no inline scripts.
-        // The per-instance JS is added via wp_add_inline_script so we never
-        // need to return unescaped <script> tags from the shortcode callback.
+        // The autoloader finds div.markmap, reads the <script type="text/template">
+        // inside it, parses frontmatter, and renders. We use wp_kses with an explicit
+        // allowlist so the script tag survives sanitisation.
+        // Use ENT_NOQUOTES so double-quotes in YAML color values are NOT encoded
+        // as &quot; which would break markmap-lib's frontmatter YAML parser.
+        $escaped_markdown = htmlspecialchars( $full_markdown, ENT_NOQUOTES, 'UTF-8' );
+
+        // Return without wp_kses — it strips <script> content. The markdown is
+        // safely escaped above; div attrs are escaped with esc_attr().
         $html = '<div id="' . esc_attr( $map_id ) . '-wrap" '
             . 'class="otmm-wrap markmap" '
             . 'style="width:' . esc_attr( $atts['width'] ) . ';height:' . esc_attr( $atts['height'] ) . ';">'
-            . '<script type="text/template">' . esc_textarea( $markdown ) . '</script>'
+            . '<script type="text/template">' . $escaped_markdown . '</script>'
             . '</div>';
-
-        // Add per-instance init script via wp_add_inline_script (properly escaped).
-        $inline_js = '(function(){'
-            . 'var id="' . esc_js( $map_id ) . '-wrap",opts=' . $js_opts . ',t=0;'
-            . 'function run(){'
-            .   'var w=document.getElementById(id);if(!w)return;'
-            .   'var svg=w.querySelector("svg.markmap");'
-            .   'if(!svg||!svg.__markmap){if(++t<200)return setTimeout(run,100);return;}'
-            .   'var mm=svg.__markmap;'
-            .   'if(mm.setOptions){mm.setOptions(opts);mm.renderData();}'
-            .   'setTimeout(function(){if(mm.fit)mm.fit();},300);'
-            . '}'
-            . 'setTimeout(run,500);'
-            . '})();';
-
-        wp_add_inline_script( 'markmap-autoloader', $inline_js );
 
         if ( $use_cache ) {
             $ttl = (int) ( $opts['cache_ttl'] ?? Outline_To_Mind_Map_Cache::DEFAULT_TTL );
             $this->cache->set( $cache_key, $html, $ttl );
         }
 
-        return wp_kses_post( $html );
+        return $html;
     }
 
     // -------------------------------------------------------------------------
@@ -233,6 +218,25 @@ class Outline_To_Mind_Map_Shortcode {
             }
         }
         return $atts;
+    }
+
+    private function build_frontmatter( array $atts ): string {
+        $fold  = $atts['fold'];
+        $level = -1; // none = fully expanded
+        if ( 'all' === $fold ) {
+            $level = 1;
+        } elseif ( is_numeric( $fold ) ) {
+            $level = (int) $fold;
+        }
+
+        $colors = $this->color_palette( $atts['color_scheme'] );
+        // Use proper YAML block sequence — one entry per line — which markmap-lib parses reliably.
+        $color_yaml = implode( '', array_map( fn( $c ) => "\n    - \"$c\"", $colors ) );
+
+        $zoom = filter_var( $atts['zoom'], FILTER_VALIDATE_BOOLEAN ) ? 'true' : 'false';
+        $pan  = filter_var( $atts['pan'],  FILTER_VALIDATE_BOOLEAN ) ? 'true' : 'false';
+
+        return "---\nmarkmap:\n  initialExpandLevel: {$level}\n  color:{$color_yaml}\n  zoom: {$zoom}\n  pan: {$pan}\n---\n";
     }
 
     private function build_js_options( array $atts ): array {
